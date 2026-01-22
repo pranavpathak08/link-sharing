@@ -41,6 +41,8 @@ export const login = async (req, res) => {
         message: "Login Successful",
         token: generateToken(user)
     })
+
+    console.log(`${user.firstName} ${user.lastName} logged in!`)
 }
 
 
