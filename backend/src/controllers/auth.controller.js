@@ -1,11 +1,13 @@
-import User from "../models/User";
-import { generateToken } from "../utils/jwt";
+import User from "../models/User.js";
+import { generateToken } from "../utils/jwt.js";
 
 
 //Register
 
 export const register = async (req, res) => {
+    
     const {email, username, password, firstName, lastName} = req.body;
+    console.log(req.body);
 
     const existingUser = await User.findOne({ $or: [{email}, {username}]});
 
