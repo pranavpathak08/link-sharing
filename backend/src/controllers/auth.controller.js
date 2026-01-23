@@ -26,6 +26,8 @@ export const register = async (req, res) => {
         message: "User registered successfully",
         token: generateToken(user)
     })
+
+    console.log("New user registered: ", user);
 }
 
 //Login
