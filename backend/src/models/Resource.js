@@ -14,7 +14,7 @@ const resourceSchema = new mongoose.Schema({
 
     topic: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+        ref: 'Topic',
         required: true
     }
 }, {timestamps: true, discriminatorKey: 'type'})

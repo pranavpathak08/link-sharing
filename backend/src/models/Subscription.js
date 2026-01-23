@@ -20,4 +20,4 @@ const subscriptionSchema = new mongoose.Schema({
 
 subscriptionSchema.index({topic: 1, user: 1}, {unique: true});
 
-export default subscriptionSchema.model('Subscription', subscriptionSchema);
+export default mongoose.model('Subscription', subscriptionSchema);
