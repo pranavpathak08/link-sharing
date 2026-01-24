@@ -282,4 +282,64 @@ export const getMyTopics = async (req, res) => {
     }
 }
 
-//
+//Get Topic details
+export const getTopicDetails = async (req, res) => {
+    try {
+        const { topicId } = req.params;
+        const userId = req.user._id;
+
+        const topic = await Topic.findById(topicId)
+            .populate('createdBy', 'firstName lastName username');
+        
+        if (!topic) {
+            return res.status(404).json({ message: "Topic not found" });
+        }
+
+        if (topic.visibility === "PRIVATE") {
+            const subscription = await Subscription.findOne({
+                topic: topicId,
+                user: userId
+            });
+
+            if (!subscription) {
+                return res.status(403).json({ message: "Access denied to private topic" });
+            }
+        }
+
+        //User's subscription status
+        const userSubscription = Subscription.findOne({
+            topic: topicId,
+            user: userId
+        });
+
+        res.json({
+            topic,
+            isSubscribed: !!userSubscription,
+            subscription: userSubscription
+        });
+    } catch (error) {
+        console.error("Get topic details error: ", error);
+        res.status(500).json({ message: "Failed to fetch topic details", error: error.message });
+    }
+}
+
+//Getting pending invites for current user
+export const getMyInvites = async (req, res) => {
+    try {
+        const userId = req.user._id;
+
+        const invites = await TopicInvite.find({
+            invitee: userId,
+            status: "PENDING"
+        })
+            .populate("topic", "name visibility")
+            .populate("inviter", "firstName lastName username")
+            .sort({ createdAt: -1 });
+        
+        res.json({ invites });
+    }       
+    catch (error) {
+        console.error("Get invites error: ", error);
+        res.status(500).json({ message: "Failed to fetch invites", error: error.message });
+    }
+}
