@@ -228,3 +228,58 @@ export const respondToInvite = async (req, res) => {
         res.status(500).json({ message: "Failed to respond to invite", error: error.message });
     }
 }
+
+// Browsing all public topics
+export const browseAllPublicTopics = async (req, res) => {
+    try {
+        const { page = 1, limit = 20, search } = req.query;
+        const query = { visibility: "PUBLIC" }
+        
+        //Adding search functionality
+        if (search) {
+            query.name = { $regex: search, $options: 'i' };
+        }
+
+        const topics = await Topic.find(query)
+            .populate('createdBy', 'firstName lastName username')
+            .limit(limit * 1)
+            .skip((page - 1) * limit)
+            .sort({ createdAt: -1 });
+        
+        const count = await Topic.countDocuments(query);
+
+        res.json({
+            topics,
+            totalPages: Math.ceil(count / limit),
+            currentPage: page,
+            total: count
+        })
+    } catch (error) {
+        console.error("Browse topics error: ", error);
+        res.status(500).json({ message: "Failed to fetch topics", error: error.message });
+    }
+}
+
+//Get user's subscribed topics
+export const getMyTopics = async (req, res) => {
+    try {
+        const userId = req.user._id;
+
+        const subscriptions = await Subscription.find({ user: userId })
+            .populate({
+                path: 'topic',
+                populate: {
+                    path: 'createdBy',
+                    select: 'firstName lastName username'
+                }
+            })
+            .sort({ createdAt: -1 });
+        
+        res.json({ subscriptions });
+    } catch (error) {
+        console.error("Get my topics error: ", error);
+        res.status(500).json({ message: "Failed to fetch subscriptions", error: error.message });
+    }
+}
+
+//
