@@ -176,3 +176,55 @@ export const inviteToTopic = async (req, res) => {
         res.status(500).json({ message: "Failed to send invite", error: error.message });
     }
 }
+
+// Accept or Reject Invite
+export const respondToInvite = async (req, res) => {
+    try {
+        const { inviteId } = req.params;
+        const { accept } = req.body; //true or false
+        const userId = req.user._id;
+
+        const invite = await TopicInvite.findById(invite)
+
+        if (!invite) {
+            return res.json(404).json({ message: "Invite not found" });
+        }
+
+        if (invite.invitee.toString() !== userId.toString()) {
+            return res.json(403).json({ message: "This invite is not for you" });
+        }
+
+        if (invite.status !== "PENDING") {
+            return res.json(400).json({ message: "Invite already responded to" });
+        }
+
+        if (accept) {
+            //Accepting invite and creating subscription
+            await Subscription.create({
+                topic: invite.topic,
+                user: userId,
+                seriousness: "SERIOUS"
+            });
+
+            invite.status = "ACCEPTED";
+            await invite.save();
+
+            res.json({
+                message: "Invite accepted. You are now subscribed to the topic",
+                invite
+            })
+        } else {
+            //Rejecting Invite
+            invite.status = "REJECTED";
+            await invite.save();
+
+            res.json({
+                message: "Invite rejected",
+                invite
+            })
+        }
+    } catch (error) {
+        console.error("Respond to invite error: ", error);
+        res.status(500).json({ message: "Failed to respond to invite", error: error.message });
+    }
+}
