@@ -170,3 +170,41 @@ export const downloadDocument = async (req, res) => {
         res.status(500).json({ message: "Failed to download document", error: error.message });
     }
 }
+
+//Updating any resource
+export const updateResource = async (req, res) => {
+    try {
+        const { resourceId } = req.params;
+        const { description, url } = req.body;
+        const userId = req.user._id;
+
+        const resource = await Resource.findById(resourceId);
+
+        if (!resource) {
+            return res.status(404).json({ message: "Resource not found" });
+        }
+
+        //Only creator can update
+        if (resource.createdBy.toString() !== userId.toString()) {
+            return res.status(403).json({ message: "You can only update your own resources" });
+        }
+
+        if (description) {
+            resource.description = description;
+        }
+
+        if (url && resource.type === "LINK") {
+            resource.url = url;
+        }
+
+        await resource.save();
+
+        res.json({
+            message: "Resource updated successfully",
+            resource
+        });
+    } catch (error) {
+        console.error("Update resource error: ", error);
+        res.status(500).json({ message: "Failed to update resource", error: error.message });
+    }
+}
