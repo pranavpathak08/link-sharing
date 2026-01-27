@@ -232,9 +232,10 @@ export const deleteResource = async (req, res) => {
         }
 
         await Resource.findByIdAndDelete(resourceId);
-
+        res.json({ message: "Resource deleted successfully" });
         
     } catch (error) {
-        
+        console.error("Delete resource error: ", error);
+        res.status(500).json({ message: "Failed to delete resource", error: error.message });
     }
 }
