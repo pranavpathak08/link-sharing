@@ -129,3 +129,44 @@ export const getResource = async (req, res) => {
         res.status(500).json({ message: "Failed to fetch resource", error: error.message });
     }
 }
+
+//Downloading document resource
+export const downloadDocument = async (req, res) => {
+    try {
+        const { resourceId } = req.params;
+        const userId = req.user._id;
+
+        const resource = await Resource.findById(resourceId);
+
+        if (!resource) {
+            return res.status(404).json({ message: "Resource not found" });
+        }
+
+        if (resource.type !== "DOCUMENT") {
+            return res.status(400).json({ message: "This is not a document resource" });
+        }
+
+        //Checking if user has access
+        const subscription = await Subscription.findOne({
+            topic: resource.topic,
+            user: userId
+        });
+
+        if (!subscription) {
+            return res.status(403).json({ message: "You must be subscribed to download this resource" });
+        }
+
+        //Checking if file exists
+        if (!fs.existsSync(resource.filePath)) {
+            return res.status(404).json({ message: "File not found on server" });
+        }
+
+        //Sending File
+        const fileName = path.basename(resource.filePath);
+        res.download(resource.filePath, fileName);
+
+    } catch (error) {
+        console.error("Download document error: ", error);
+        res.status(500).json({ message: "Failed to download document", error: error.message });
+    }
+}
