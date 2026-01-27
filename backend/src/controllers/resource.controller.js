@@ -98,3 +98,34 @@ export const getTopicResources = async (req, res) => {
         res.status(500).json({ message: "Failed to fetch resource", error: error.message });
     }
 }
+
+//Getting a specific resource
+export const getResource = async (req, res) => {
+    try {
+        const { resourceId } = req.params;
+        const userId = req.user._id;
+
+        const resource = await Resource.findById(resourceId)
+            .populate('createdBy', 'firstName lastName username')
+            .populate('topic', 'name visibility');
+        
+        if (!resource) {
+            return res.status(404).json({ message: "Resource not found" });
+        }
+
+        //Checking if user has access
+        const subscription = await Subscription.findOne({
+            topic: resource.topic._id,
+            user: userId
+        });
+
+        if (!subscription) {
+            return res.status(403).json({ message: "You must be subscribed to view this resource" });
+        }
+
+        res.json({ resource });
+    } catch (error) {
+        console.error("Get resource error: ", error);
+        res.status(500).json({ message: "Failed to fetch resource", error: error.message });
+    }
+}
