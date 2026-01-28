@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken'
-import User from '../models/User'
+import User from '../models/User.js'
 
 
 export const protect = async (req, res, next) => {
@@ -25,4 +25,12 @@ export const protect = async (req, res, next) => {
     } catch (error) {
         return res.status(401).json({message: "Invalid or expired token"});
     }
+}
+
+//Checking if user is Admin
+export const requireAdmin = (req, res, next) => {
+    if (!req.user.admin) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required" });
+    }
+    next();
 }
