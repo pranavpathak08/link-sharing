@@ -42,7 +42,7 @@ const storage = multer.diskStorage({
 });
 
 //File filter to validate MIME types
-const fileFilter = (req, file, cn) => {
+const fileFilter = (req, file, cb) => {
     if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
         cb(null, true);
     } else {

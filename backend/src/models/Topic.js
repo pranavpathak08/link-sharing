@@ -14,7 +14,7 @@ const topicSchema = new mongoose.Schema({
 
     visibility: {
         type: String,
-        enum: ['PUBLIC, PRIVATE'],
+        enum: ['PUBLIC', 'PRIVATE'],
         default: 'PUBLIC'
     }
 }, {timestamps: true});
