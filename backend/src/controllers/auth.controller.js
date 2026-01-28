@@ -1,3 +1,4 @@
+import { ERROR_MESSAGES } from "../constants/index.js";
 import User from "../models/User.js";
 import { generateToken } from "../utils/generateToken.js";
 
@@ -84,3 +85,42 @@ export const resetPassword = async (req, res) => {
     res.json({message: "Password reset successful"});
 };
 
+//Deactivating account
+export const deactivateAccount = async (req, res) => {
+    try {
+        const userId = req.user._id;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: ERROR_MESSAGES.USER_NOT_FOUND });
+        }
+
+        user.active = false;
+        await user.save();
+
+        res.json({ message: "Account deactivated successfully" });
+        console.log(`User ${ user.email } deactivated their account`);
+
+    } catch (error) {
+        console.error("Deactivate account error: ", error);
+        res.status(500).json({ message: "Failed to deactivate account", error: error.message });
+    }
+}
+
+//Reactivating user account
+export const reactivateAccount = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const user = await User.findOne({ email, active: false });
+
+        if (!user || !(await user.comparePassword(password))) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
+
+        user.active = true;
+        await user.save();
+    } catch (error) {
+        console.error("Error in account reactivation: ", error);
+        res.status(500).json({message: "Failed to reactivate account", error: error.message})
+    }
+}
