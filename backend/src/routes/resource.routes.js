@@ -5,7 +5,9 @@ import {
     getResource,
     downloadDocument,
     updateResource,
-    deleteResource
+    deleteResource,
+    toggleReadStatus,
+    rateResource
 } from '../controllers/resource.controller.js'
 import { protect } from '../middleware/auth.middleware.js'
 import upload from '../config/multer.config.js'
@@ -93,6 +95,29 @@ router.delete(
     '/resources/:resourceId',
     validateObjectId('resourceId'),
     deleteResource
+);
+
+/**
+ * @route POST /api/resources/:resourceId/read
+ * @desc Toggle read/unread status for a resource
+ * @access Private (requires subscription to resource's topic)
+ */
+router.post(
+    '/resources/:resourceId/read',
+    validateObjectId('resourceId'),
+    toggleReadStatus
+);
+
+/**
+ * @route POST /api/resources/:resourceId/rate
+ * @desc Rate a resource (1-5 scale)
+ * @access Private (requires subscription to a resource's topic)
+ * @body {score: number}
+ */
+router.post(
+    '/resources/:resourceId/rate',
+    validateObjectId('resourceId'),
+    rateResource
 );
 
 export default router;

@@ -1,6 +1,11 @@
+import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "../constants/index.js";
+import ReadingItem from "../models/ReadingItem.js";
+import { Resource } from "../models/Resource.js";
+import ResourceRating from "../models/ResourceRating.js";
 import Subscription from "../models/Subscription.js";
 import Topic from "../models/Topic.js";
 import TopicInvite from "../models/TopicInvite.js";
+import fs from 'fs';
 
 
 //Creating a new topic
@@ -28,7 +33,7 @@ export const createTopic = async (req, res) => {
             seriousness: "VERY_SERIOUS"
         });
 
-        res.status(201).json({ message: "Topic created successfully" }, topic);
+        res.status(201).json({ message: "Topic created successfully" , topic});
 
         //Log statement
         console.log(`${ req.user.firstName } ${ req.user.lastName } created topic: ${ name }`); 
@@ -143,7 +148,7 @@ export const inviteToTopic = async (req, res) => {
         });
 
         if (inviteeAlreadySubscribed) {
-            return res.status(400).json({ message: "User is already subscribed to this page" });
+            return res.status(400).json({ message: "User is already subscribed to this topic" });
         }
 
         //Checkinf for existing pending invite
@@ -184,18 +189,18 @@ export const respondToInvite = async (req, res) => {
         const { accept } = req.body; //true or false
         const userId = req.user._id;
 
-        const invite = await TopicInvite.findById(invite)
+        const invite = await TopicInvite.findById(inviteId)
 
         if (!invite) {
-            return res.json(404).json({ message: "Invite not found" });
+            return res.status(404).json({ message: "Invite not found" });
         }
 
         if (invite.invitee.toString() !== userId.toString()) {
-            return res.json(403).json({ message: "This invite is not for you" });
+            return res.status(403).json({ message: "This invite is not for you" });
         }
 
         if (invite.status !== "PENDING") {
-            return res.json(400).json({ message: "Invite already responded to" });
+            return res.status(400).json({ message: "Invite already responded to" });
         }
 
         if (accept) {
@@ -248,8 +253,18 @@ export const browseAllPublicTopics = async (req, res) => {
         
         const count = await Topic.countDocuments(query);
 
+        const topicsWithStats = await Prmomise.all(
+            topics.map(async (topic) => {
+                const subscriberCount = await Subscription.countDocuments({ topic: topic._id });
+                return {
+                    ...topic.toObject(),
+                    subscriberCount
+                };
+            })
+        );
+
         res.json({
-            topics,
+            topics: topicsWithStats,
             totalPages: Math.ceil(count / limit),
             currentPage: page,
             total: count
@@ -312,8 +327,13 @@ export const getTopicDetails = async (req, res) => {
             user: userId
         });
 
+        const subscriberCount = await Subscription.countDocuments({ topic: topicId });
+
         res.json({
-            topic,
+            topic: {
+                ...topic.toObject(),
+                subscriberCount
+            },
             isSubscribed: !!userSubscription,
             subscription: userSubscription
         });
@@ -341,5 +361,137 @@ export const getMyInvites = async (req, res) => {
     catch (error) {
         console.error("Get invites error: ", error);
         res.status(500).json({ message: "Failed to fetch invites", error: error.message });
+    }
+}
+
+export const deleteTopic = async (req, res) => {
+    try {
+        const { topicId } = req.params;
+        const userId = req.user._id;
+        const isAdmin = req.user.isAdmin;
+
+        const topic = await Topic.findById(topicId);
+
+        if (!topic) {
+            return res.status(404).json({ message: ERROR_MESSAGES.TOPIC_NOT_FOUND });
+        }
+
+        //Check if user is creator or admin
+        const isCreator = topic.createdBy.toString() === userId.toString();
+        if (!isCreator && !isAdmin) {
+            return res.status(403).json({
+                message: "Only the topic creator or admin can delete this topic"
+            })
+        }
+
+        //Getting all resources associated with this topic
+        const resources = await Resource.find({ topic: topicId });
+
+        //Deleting all associated files for document resources
+        for (const resource of resources) {
+            if (resource.type === "DOCUMENT" && fs.existsSync(resource.filePath)) {
+                fs.unlinkSync(resource.filePath);
+            }
+        }
+
+        const resourceIds = resources.map(r => r.id);
+
+        //Deleting all reading items for these resources
+        await ReadingItem.deleteMany({ resource: { $in: resourceIds } });
+
+        //Deleting all ratings for these resources
+        await ResourceRating.deleteMany({ resource: { $in: resourceIds } });
+
+        //Deleting all resources
+        await Resource.deleteMany({ topic: topicId });
+
+        //Delete all invites
+        await TopicInvite.deleteMany({ topic: topicId });
+
+        //Deleting the topic 
+        await Topic.findByIdAndDelete(topicId);
+
+        res.json({
+            message: "Topic and all associated data deleted successfully",
+            deletedResources: resources.length
+        });
+
+        console.log(`Topic ${ topic.name } deleted by ${ isAdmin ? 'admin' : 'creator' }- ${ resources.length } resources removed`);
+
+    } catch (error) {
+        console.error("Delete topic error: ", error);
+        res.status(500).json({ message: "Failed to delete topic", error: error.message });
+    }
+};
+
+export const getTrendingTopics = async (req, res) => {
+    try {
+        const { limit = 10 } = req.query;
+
+        const trendingTopics = await Subscription.aggregate([
+            {
+                $group: {
+                    _id: '$topic',
+                    subscriberCount: { $sum: 1 }
+                }
+            },
+            {
+                $sort: { subscriberCount: -1 }
+            },
+            {
+                $limit: parseInt(limit)
+            },
+            {
+                $lookup: {
+                    from: 'topics',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'topicDetails'
+                }
+            },
+            {
+                $unwind: '$topicDetails'
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'topicDetails.createdBy',
+                    foreignField: '_id',
+                    as: 'creatorDetails'
+                }
+            },
+            {
+                $unwind: '$creatorDetails'
+            },
+            {
+                $match: {
+                    'topicDetails.visibility': 'PUBLIC'
+                }
+            },
+            {
+                $project: {
+                    _id: '$topicDetails._id',
+                    name: '$topicDetails.name',
+                    visibility: '$topicDetails.visibility',
+                    createdAt: '$topicDetails.createdAt',
+                    createdBy: {
+                        _id: '$creatorDetails._id',
+                        firstName: '$creatorDetails.firstName',
+                        lastName: '$creatorDetails.lastName',
+                        username: '$creatorDetails.username'
+                    },
+                    subscriberCount: 1
+                }
+            }
+        ]);
+
+        res.json({
+            message: "Trending topics based on subscriber count",
+            topics: trendingTopics
+        });
+
+    } catch (error) {
+        console.error("Get trending topics error: ", error);
+        res.status(500).json({ message: "Failed to fetch trending topics", error: error.message });
     }
 }
