@@ -60,7 +60,7 @@ export const forgotPassword = async(req, res) => {
     const resetToken = user.createPasswordResetToken();
     await user.save();
 
-    console.log(`Reset link: http://localhost:3000/reset/${resetToken}`)
+    console.log(`Reset link: http://localhost:5173/reset-password/${resetToken}`)
     res.json({message: "Password reset link sent to mail"});
 }
 
