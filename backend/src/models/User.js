@@ -83,6 +83,7 @@ userSchema.methods.comparePassword = function (enteredPassword) {
 userSchema.methods.createPasswordResetToken = function () {
     const resetToken = crypto.randomBytes(32).toString('hex');
 
+    this.resetPasswordToken = resetToken;
     this.resetPasswordToken = crypto
         .createHash('sha256')
         .update(resetToken)
