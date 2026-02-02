@@ -24,9 +24,20 @@ export const register = async (req, res) => {
         lastName
     });
 
+    const userData = {
+        _id: user._id,
+        email: user.email,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        admin: user.admin,
+        active: user.active
+    };
+
     res.status(201).json({
         message: "User registered successfully",
-        token: generateToken(user)
+        token: generateToken(user),
+        user: userData
     })
 
     console.log("New user registered: ", user);
@@ -39,11 +50,22 @@ export const login = async (req, res) => {
 
     const user = await User.findOne({email, active: true});
     if(!user || !(await user.comparePassword(password)))
-        return res.status(401).json({message: "Invalid Credentials"});
+        return res.status(401).json({ message: "Invalid Credentials" });
+    
+    const userData = {
+        _id: user._id,
+        email: user.email,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        admin: user.admin,
+        active: user.active
+    };
 
     res.json({
         message: "Login Successful",
-        token: generateToken(user)
+        token: generateToken(user),
+        user: userData
     })
 
     console.log(`${user.firstName} ${user.lastName} logged in!`)
@@ -146,6 +168,22 @@ export const reactivateAccount = async (req, res) => {
 
         user.active = true;
         await user.save();
+
+        const userData = {
+            _id: user._id,
+            email: user.email,
+            username: user.username,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            admin: user.admin,
+            active: user.active
+        };
+        
+        res.json({
+            message: "Account reactivated successfully",
+            token: generateToken(user),
+            user: userData
+        });
     } catch (error) {
         console.error("Error in account reactivation: ", error);
         res.status(500).json({message: "Failed to reactivate account", error: error.message})

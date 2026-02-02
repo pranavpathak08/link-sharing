@@ -18,7 +18,7 @@ export const sendEmail = async (options) => {
     const transporter = createTransporter();
 
     const mailOptions = {
-        from: `${ process.env.EMAIL_FROM_NAME || 'ReadingList' } <${ process.env.EMAIL_FROM || process.env.EMAIL_USER }>`,
+        from: `${ process.env.EMAIL_FROM_NAME || 'ChirpX' } <${ process.env.EMAIL_FROM || process.env.EMAIL_USER }>`,
         to: options.to,
         subject: options.subject,
         html: options.html,
@@ -90,7 +90,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
                 </div>
                 <div class="content">
                     <p>Hello,</p>
-                    <p>You requested to reset your password for your ReadingList account.</p>
+                    <p>You requested to reset your password for your ChirpX account.</p>
                     <p>Click the button below to reset your password:</p>
                     <div style="text-align: center;">
                         <a href="${ resetURL }" class="button">Reset Password</a>
@@ -99,7 +99,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
                     <p style="word-break: break-all; color: #0d6efd;">${ resetURL }</p>
                     <p><strong>This link will expire in 10 minutes.</strong></p>
                     <p>If you didn't request a password reset, please ignore this email or contact support if you have concerns.</p>
-                    <p>Best regards,<br>The ReadingList Team</p>
+                    <p>Best regards,<br>The ChirpX Team</p>
                 </div>
                 <div class="footer">
                     <p>This is an automated email. Please do not reply to this message.</p>
