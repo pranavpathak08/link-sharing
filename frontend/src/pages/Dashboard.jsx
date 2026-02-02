@@ -36,7 +36,7 @@ const Dashboard = () => {
                     <Container>
                         <Navbar.Brand>
                             <FaBook className="me-2" />
-                            ReadingList - Admin Panel
+                            ChirpX - Admin Panel
                         </Navbar.Brand>
                         <Navbar.Toggle />
                         <Navbar.Collapse>
@@ -120,7 +120,7 @@ const Dashboard = () => {
                 <Container>
                     <Navbar.Brand>
                         <FaBook className="me-2" />
-                        ReadingList
+                        ChirpX
                     </Navbar.Brand>
                     <Navbar.Toggle />
                     <Navbar.Collapse>

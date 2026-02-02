@@ -24,7 +24,7 @@ const Homepage = () => {
                 <Container>
                     <Navbar.Brand as={Link} to="/" className="fw-bold d-flex align-items-center">
                         <FaBook className="me-2 text-primary" size={28} />
-                        <span className="gradient-text">ReadingList</span>
+                        <span className="gradient-text">ChirpX</span>
                     </Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
@@ -299,7 +299,7 @@ const Homepage = () => {
                         <Col md={4}>
                             <h5 className="fw-bold mb-3 d-flex align-items-center">
                                 <FaBook className="me-2" />
-                                ReadingList
+                                ChirpX
                             </h5>
                             <p className="text-light opacity-75">
                                 Your personal reading companion for organized learning and knowledge management.
@@ -348,7 +348,7 @@ const Homepage = () => {
                     <Row>
                         <Col className="text-center text-light opacity-75">
                             <p className="mb-0">
-                                &copy; {new Date().getFullYear()} ReadingList. All rights reserved.
+                                &copy; {new Date().getFullYear()} ChirpX. All rights reserved.
                             </p>
                         </Col>
                     </Row>

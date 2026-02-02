@@ -24,8 +24,10 @@ export const AuthProvider = ({ children }) => {
 
         if (storedToken && storedUser) {
             try {
+                const parsedUser = JSON.parse(storedUser);
                 setToken(storedToken);
-                setUser(JSON.parse(storedUser));
+                setUser(parsedUser);
+                console.log('User loaded from localStorage:', parsedUser);
             } catch (error) {
                 console.error('Error parsing stored user data:', error);
                 localStorage.removeItem('token');
@@ -38,15 +40,20 @@ export const AuthProvider = ({ children }) => {
     const login = async (credentials) => {
         try {
             const response = await authAPI.login(credentials);
-            const { token, user } = response.data;
+            const { token: newToken, user: userData } = response.data;
 
-            console.log(user);
+            console.log('Login response:', response.data);
+            console.log('User data:', userData);
 
-            localStorage.setItem('token', token);
-            localStorage.setItem('user', JSON.stringify(user));
+            if (!userData) {
+                throw new Error('User data not received from server');
+            }
 
-            setToken(token);
-            setUser(user);
+            localStorage.setItem('token', newToken);
+            localStorage.setItem('user', JSON.stringify(userData));
+
+            setToken(newToken);
+            setUser(userData);
 
             toast.success("Login Successfull");
             return { success: true };
@@ -62,10 +69,10 @@ export const AuthProvider = ({ children }) => {
     const register = async (userData) => {
         try {
             const response = await authAPI.register(userData);
-            const { token, user } = response.data;
+            const { token: newToken, user: newUser } = response.data;
 
-            localStorage.setItem('token', token);
-            localStorage.setItem('user', JSON.stringify(user));
+            localStorage.setItem('token', newToken);
+            localStorage.setItem('user', JSON.stringify(newUser));
 
             setToken(token);
             setUser(user);
@@ -84,6 +91,7 @@ export const AuthProvider = ({ children }) => {
         console.log(`${ user } logged out`);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        
         setToken(null);
         setUser(null);
 
