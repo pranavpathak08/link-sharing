@@ -8,11 +8,11 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
-// import Dashboard from './pages/Dashboard';
+import Dashboard from './pages/Dashboard';
+import Homepage from './pages/HomePage';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
-import Homepage from './pages/HomePage';
 
 function App() {
   return (
@@ -52,14 +52,14 @@ function App() {
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           
           {/* Protected Routes */}
-          {/* <Route
+          <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
                 <Dashboard />
               </ProtectedRoute>
             }
-          /> */}
+          />
           
           {/* Catch all - redirect to homepage */}
           <Route path="*" element={<Navigate to="/" replace />} />
