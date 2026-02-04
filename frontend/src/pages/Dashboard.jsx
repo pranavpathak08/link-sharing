@@ -445,7 +445,12 @@ const Dashboard = () => {
                                                 <div className="d-flex align-items-center">
                                                     <span className="trending-rank me-3">{index + 1}</span>
                                                     <div className="flex-grow-1">
-                                                        <div className="trending-name">{topic.name}</div>
+                                                        <div className="trending-name"
+                                                            onClick={ () =>
+                                                                // console.log(topic._id)
+                                                                navigate(`/topic/${ topic._id }`)
+                                                            }
+                                                        >{ topic.name }</div>
                                                         <small className="text-muted">
                                                             {topic.subscriberCount} subscribers
                                                         </small>

@@ -13,6 +13,7 @@ import Homepage from './pages/HomePage';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
+import TopicPage from './pages/TopicPage';
 
 function App() {
   return (
@@ -49,7 +50,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/reset-password/:token" element={ <ResetPassword /> } />
+          <Route path="/topic/:topicId" element={  <TopicPage />} />
           
           {/* Protected Routes */}
           <Route
