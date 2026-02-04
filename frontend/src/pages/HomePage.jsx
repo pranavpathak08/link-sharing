@@ -104,7 +104,7 @@ const Homepage = () => {
                         <Col lg={6} className="d-none d-lg-block">
                             <div className="hero-illustration position-relative">
                                 <div className="illustration-bg"></div>
-                                <div className="floating-card card-1">
+                                {/* <div className="floating-card card-1">
                                     <div className="icon-wrapper">
                                         <FaBook size={32} className="text-primary" />
                                     </div>
@@ -124,7 +124,7 @@ const Homepage = () => {
                                     </div>
                                     <p className="mb-0 mt-2 fw-semibold">Track Progress</p>
                                     <small className="text-muted">Visual insights</small>
-                                </div>
+                                </div> */}
                             </div>
                         </Col>
                     </Row>
