@@ -151,7 +151,7 @@ export const inviteToTopic = async (req, res) => {
             return res.status(400).json({ message: "User is already subscribed to this topic" });
         }
 
-        //Checkinf for existing pending invite
+        //Checking for existing pending invite
         const existingPendingInvite = await TopicInvite.findOne({
             topic: topicId,
             invitee: inviteeId,
@@ -234,7 +234,7 @@ export const respondToInvite = async (req, res) => {
     }
 }
 
-// Browsing all public topics
+// Browsing all public topics - FIXED VERSION
 export const browseAllPublicTopics = async (req, res) => {
     try {
         const { page = 1, limit = 20, search } = req.query;
@@ -253,7 +253,7 @@ export const browseAllPublicTopics = async (req, res) => {
         
         const count = await Topic.countDocuments(query);
 
-        const topicsWithStats = await Prmomise.all(
+        const topicsWithStats = await Promise.all( // FIXED: was Prmomise.all
             topics.map(async (topic) => {
                 const subscriberCount = await Subscription.countDocuments({ topic: topic._id });
                 return {
@@ -322,7 +322,7 @@ export const getTopicDetails = async (req, res) => {
         }
 
         //User's subscription status
-        const userSubscription = Subscription.findOne({
+        const userSubscription = await Subscription.findOne({
             topic: topicId,
             user: userId
         });
@@ -394,7 +394,7 @@ export const deleteTopic = async (req, res) => {
             }
         }
 
-        const resourceIds = resources.map(r => r.id);
+        const resourceIds = resources.map(r => r._id);
 
         //Deleting all reading items for these resources
         await ReadingItem.deleteMany({ resource: { $in: resourceIds } });
@@ -404,6 +404,9 @@ export const deleteTopic = async (req, res) => {
 
         //Deleting all resources
         await Resource.deleteMany({ topic: topicId });
+
+        //Delete all subscriptions
+        await Subscription.deleteMany({ topic: topicId });
 
         //Delete all invites
         await TopicInvite.deleteMany({ topic: topicId });
@@ -416,7 +419,7 @@ export const deleteTopic = async (req, res) => {
             deletedResources: resources.length
         });
 
-        console.log(`Topic ${ topic.name } deleted by ${ isAdmin ? 'admin' : 'creator' }- ${ resources.length } resources removed`);
+        console.log(`Topic ${ topic.name } deleted by ${ isAdmin ? 'admin' : 'creator' } - ${ resources.length } resources removed`);
 
     } catch (error) {
         console.error("Delete topic error: ", error);

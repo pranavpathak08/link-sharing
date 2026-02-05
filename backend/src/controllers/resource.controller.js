@@ -264,7 +264,7 @@ export const updateResource = async (req, res) => {
     }
 }
 
-//Deletign any resource
+//Deleting any resource
 export const deleteResource = async (req, res) => {
     try {
         const { resourceId } = req.params;
@@ -306,7 +306,7 @@ export const deleteResource = async (req, res) => {
     }
 }
 
-//Read or Unread status
+//Read or Unread status - FIXED VERSION
 export const toggleReadStatus = async (req, res) => {
     try {
         const { resourceId } = req.params;
@@ -324,7 +324,7 @@ export const toggleReadStatus = async (req, res) => {
         })
 
         if (!subscription) {
-            return res.status(403).json({ message: ERROR_MESSAGES.SUBSCRIPTION_NOT_FOUND });
+            return res.status(403).json({ message: ERROR_MESSAGES.NOT_SUBSCRIBED });
         }
 
         let readingItem = await ReadingItem.findOne({
@@ -334,7 +334,7 @@ export const toggleReadStatus = async (req, res) => {
 
         if (readingItem) {
             readingItem.isRead = !readingItem.isRead;
-            await ReadingItem.save();
+            await readingItem.save(); // FIXED: was ReadingItem.save()
         } else {
             readingItem = await ReadingItem.create({
                 resource: resourceId,
@@ -365,7 +365,7 @@ export const rateResource = async (req, res) => {
             return res.status(400).json({ message: "Score must be between 1 and 5" });
         }
 
-        //Verifyin resources exists and user has access to it
+        //Verifying resources exists and user has access to it
         const resource = await Resource.findById(resourceId);
         if (!resource) {
             return res.status(404).json({ message: ERROR_MESSAGES.RESOURCE_NOT_FOUND });
@@ -377,7 +377,7 @@ export const rateResource = async (req, res) => {
         });
 
         if (!subscription) {
-            return res.status(403).json({ message: ERROR_MESSAGES.SUBSCRIPTION_NOT_FOUND });
+            return res.status(403).json({ message: ERROR_MESSAGES.NOT_SUBSCRIBED });
         }
 
         let rating = await ResourceRating.findOne({
