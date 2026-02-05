@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Container, Row, Col, Card, Button, Navbar, Nav, NavDropdown, Form, InputGroup } from "react-bootstrap";
+import { Container, Row, Col, Card, Button, Navbar, Nav, NavDropdown, Spinner, Alert } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import {
     FaBook,
@@ -19,6 +19,9 @@ import {
     FaLink
 } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
+import { topicAPI, resourceAPI } from "../services/api";
+import CreateTopicModal from "../components/CreateTopicModal";
+import toast from "react-hot-toast";
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -29,8 +32,11 @@ const Dashboard = () => {
     const [subscriptions, setSubscriptions] = useState([]);
     const [trendingTopics, setTrendingTopics] = useState([]);
     const [readingItems, setReadingItems] = useState([]);
-    const [topicInput, setTopicInput] = useState('');
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    
+    // Modal state
+    const [showCreateModal, setShowCreateModal] = useState(false);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -42,53 +48,55 @@ const Dashboard = () => {
 
     const fetchDashboardData = async () => {
         try {
-            // TODO: Replace with actual API calls
-            // Simulated data for now
-            setSubscriptions([
-                { _id: '1', name: 'Machine Learning', visibility: 'PUBLIC', seriousness: 'SERIOUS', subscriberCount: 245 },
-                { _id: '2', name: 'Web Development', visibility: 'PUBLIC', seriousness: 'VERY_SERIOUS', subscriberCount: 189 },
-                { _id: '3', name: 'Personal Finance', visibility: 'PRIVATE', seriousness: 'CASUAL', subscriberCount: 12 }
-            ]);
+            setLoading(true);
+            setError(null);
 
-            setTrendingTopics([
-                { _id: 't1', name: 'Artificial Intelligence', subscriberCount: 1543 },
-                { _id: 't2', name: 'Climate Change', subscriberCount: 1287 },
-                { _id: 't3', name: 'Blockchain', subscriberCount: 956 },
-                { _id: 't4', name: 'Space Exploration', subscriberCount: 834 },
-                { _id: 't5', name: 'Quantum Computing', subscriberCount: 721 }
-            ]);
+            // Fetch user's subscribed topics
+            const subscriptionsRes = await topicAPI.getMyTopics();
+            setSubscriptions(subscriptionsRes.data.subscriptions || []);
 
-            setReadingItems([
-                {
-                    _id: 'r1',
-                    description: 'Latest breakthrough in GPT-4 architecture and its implications for AI safety',
-                    type: 'LINK',
-                    url: 'https://example.com/article1',
-                    createdBy: { firstName: 'John', lastName: 'Doe', username: 'johndoe' },
-                    topic: { name: 'Machine Learning' },
-                    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-                    averageRating: 4.5,
-                    totalRatings: 23,
-                    isRead: false
-                },
-                {
-                    _id: 'r2',
-                    description: 'Understanding React Server Components - A comprehensive guide',
-                    type: 'DOCUMENT',
-                    filePath: '/docs/react-guide.pdf',
-                    createdBy: { firstName: 'Jane', lastName: 'Smith', username: 'janesmith' },
-                    topic: { name: 'Web Development' },
-                    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
-                    averageRating: 4.8,
-                    totalRatings: 45,
-                    isRead: true
-                }
-            ]);
+            // Fetch trending topics
+            const trendingRes = await topicAPI.getTrendingTopics(10);
+            setTrendingTopics(trendingRes.data.topics || []);
+
+            // Fetch reading items from all subscribed topics
+            await fetchReadingItems(subscriptionsRes.data.subscriptions);
 
             setLoading(false);
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
+            setError('Failed to load dashboard data. Please try again.');
             setLoading(false);
+        }
+    };
+
+    const fetchReadingItems = async (subs) => {
+        try {
+            if (!subs || subs.length === 0) {
+                setReadingItems([]);
+                return;
+            }
+
+            // Fetch resources from all subscribed topics
+            const resourcePromises = subs.map(sub => 
+                resourceAPI.getTopicResources(sub.topic._id, { page: 1, limit: 5 })
+                    .catch(err => {
+                        console.error(`Error fetching resources for topic ${sub.topic._id}:`, err);
+                        return { data: { resources: [] } };
+                    })
+            );
+
+            const resourceResponses = await Promise.all(resourcePromises);
+            
+            // Combine and sort all resources by date
+            const allResources = resourceResponses
+                .flatMap(res => res.data.resources || [])
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                .slice(0, 20); // Limit to 20 most recent items
+
+            setReadingItems(allResources);
+        } catch (error) {
+            console.error('Error fetching reading items:', error);
         }
     };
 
@@ -97,18 +105,25 @@ const Dashboard = () => {
         navigate('/');
     };
 
-    const handleCreateTopic = async (e) => {
-        e.preventDefault();
-        if (!topicInput.trim()) return;
+    const handleTopicClick = (topicId) => {
+        navigate(`/topic/${topicId}`);
+    };
 
+    const handleToggleReadStatus = async (resourceId) => {
         try {
-            // TODO: Replace with actual API call
-            console.log('Creating topic:', topicInput);
-            setTopicInput('');
-            // Refresh subscriptions after creation
-            // fetchDashboardData();
+            await resourceAPI.toggleReadStatus(resourceId);
+            
+            // Update the reading item in state
+            setReadingItems(prev => prev.map(item => 
+                item._id === resourceId 
+                    ? { ...item, isRead: !item.isRead }
+                    : item
+            ));
+            
+            toast.success('Read status updated');
         } catch (error) {
-            console.error('Error creating topic:', error);
+            console.error('Error toggling read status:', error);
+            toast.error('Failed to update read status');
         }
     };
 
@@ -216,8 +231,7 @@ const Dashboard = () => {
             {/* User Navbar */}
             <Navbar bg="white" expand="lg" className="shadow-sm sticky-top">
                 <Container fluid>
-                    <Navbar.Brand className="fw-bold">
-                        {/* <FaBook className="me-2 text-primary" /> */}
+                    <Navbar.Brand className="fw-bold gradient-text">
                         ChirpX
                     </Navbar.Brand>
                     <Navbar.Toggle />
@@ -225,9 +239,11 @@ const Dashboard = () => {
                         <Nav className="ms-auto align-items-center">
                             <NavDropdown
                                 title={
-                                    <span>
-                                        <div className="user-avatar-small d-inline-flex align-items-center justify-content-center me-2">
-                                            {getInitials(user?.firstName, user?.lastName)}
+                                    <span className="nav-dropdown">
+                                        <div className="user-avatar d-inline-flex align-items-center justify-content-center me-2">
+                                            <div className="avatar-circle small">
+                                                {getInitials(user?.firstName, user?.lastName)}
+                                            </div>
                                         </div>
                                         {user?.firstName} {user?.lastName}
                                     </span>
@@ -241,18 +257,14 @@ const Dashboard = () => {
                                 </NavDropdown.Item>
                                 <NavDropdown.Item>
                                     <FaBook className="me-2" />
-                                    Topics
-                                </NavDropdown.Item>
-                                <NavDropdown.Item>
-                                    <FaFileAlt className="me-2" />
-                                    Reading Items
+                                    My Topics
                                 </NavDropdown.Item>
                                 <NavDropdown.Divider />
                                 <NavDropdown.Item>
                                     <FaCog className="me-2" />
                                     Settings
                                 </NavDropdown.Item>
-                                <NavDropdown.Item onClick={handleLogout}>
+                                <NavDropdown.Item onClick={handleLogout} className="text-danger">
                                     <FaSignOutAlt className="me-2" />
                                     Logout
                                 </NavDropdown.Item>
@@ -262,149 +274,198 @@ const Dashboard = () => {
                 </Container>
             </Navbar>
 
-            <Container fluid className="py-4">
+            <Container fluid className="dashboard-container py-4">
                 <Row className="g-4">
                     {/* Left Sidebar - Subscriptions */}
-                    <Col lg={3} className="d-none d-lg-block">
-                        <div className="sidebar-left sticky-sidebar">
-                            <Card className="border-0 shadow-sm mb-3">
-                                <Card.Body>
-                                    <h6 className="fw-bold mb-3">My Subscriptions</h6>
-                                    <div className="mb-3">
-                                        <span className="text-muted">Total: </span>
-                                        <span className="fw-bold">{subscriptions.length}</span>
-                                    </div>
-                                    
-                                    <div className="subscriptions-list">
-                                        {subscriptions.length === 0 ? (
-                                            <p className="text-muted small">No subscriptions yet</p>
-                                        ) : (
-                                            subscriptions.map(sub => (
-                                                <div key={sub._id} className="subscription-item">
-                                                    <div className="d-flex align-items-center justify-content-between">
-                                                        <div className="flex-grow-1">
-                                                            <div className="d-flex align-items-center gap-2">
-                                                                {sub.visibility === 'PUBLIC' ? (
-                                                                    <FaGlobe size={12} className="text-success" />
-                                                                ) : (
-                                                                    <FaLock size={12} className="text-warning" />
-                                                                )}
-                                                                <span className="subscription-name">{sub.name}</span>
-                                                            </div>
-                                                            <small className="text-muted">{sub.seriousness}</small>
+                    <Col lg={3} className="sidebar-left">
+                        <Card className="border-0 shadow-sm sticky-top">
+                            <Card.Body>
+                                <div className="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 className="fw-bold mb-0">My Topics</h6>
+                                    <span className="badge bg-primary rounded-pill">
+                                        {subscriptions.length}
+                                    </span>
+                                </div>
+                                
+                                <div className="subscription-list">
+                                    {loading ? (
+                                        <div className="text-center py-3">
+                                            <Spinner animation="border" size="sm" />
+                                        </div>
+                                    ) : subscriptions.length === 0 ? (
+                                        <div className="empty-state py-3">
+                                            <FaBook size={32} className="text-muted mb-2" />
+                                            <p className="text-muted small mb-0">No subscriptions yet</p>
+                                        </div>
+                                    ) : (
+                                        subscriptions.map(sub => (
+                                            <div 
+                                                key={sub._id} 
+                                                className="subscription-item"
+                                                onClick={() => handleTopicClick(sub.topic._id)}
+                                            >
+                                                <div className="d-flex align-items-start">
+                                                    <div className="topic-icon me-2">
+                                                        <FaBook size={14} />
+                                                    </div>
+                                                    <div className="flex-grow-1">
+                                                        <div className="topic-name">{sub.topic.name}</div>
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            {sub.topic.visibility === 'PUBLIC' ? (
+                                                                <FaGlobe size={10} className="text-success" />
+                                                            ) : (
+                                                                <FaLock size={10} className="text-warning" />
+                                                            )}
+                                                            <small className="text-muted">
+                                                                {sub.seriousness}
+                                                            </small>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </Card.Body>
-                            </Card>
-                        </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </Card.Body>
+                        </Card>
                     </Col>
 
                     {/* Center Feed */}
                     <Col lg={6}>
-                        {/* Create Topic Input */}
-                        <Card className="border-0 shadow-sm mb-4">
+                        {/* Create Topic Card */}
+                        <Card className="create-topic-card border-0 shadow-sm mb-4">
                             <Card.Body>
-                                <Form onSubmit={handleCreateTopic}>
-                                    <InputGroup>
-                                        <div className="user-avatar me-3">
+                                <div className="d-flex align-items-center gap-3">
+                                    <div className="user-avatar">
+                                        <div className="avatar-circle">
                                             {getInitials(user?.firstName, user?.lastName)}
                                         </div>
-                                        <Form.Control
-                                            type="text"
-                                            placeholder="New Chirp..."
-                                            value={topicInput}
-                                            onChange={(e) => setTopicInput(e.target.value)}
-                                            className="create-topic-input"
-                                        />
-                                        <Button 
-                                            variant="primary" 
-                                            type="submit"
-                                            disabled={!topicInput.trim()}
-                                        >
-                                            <FaPlus className="me-2" />
-                                            Topic
-                                        </Button>
-                                    </InputGroup>
-                                </Form>
+                                    </div>
+                                    <Button 
+                                        variant="outline-primary"
+                                        className="flex-grow-1 text-start topic-input"
+                                        onClick={() => setShowCreateModal(true)}
+                                    >
+                                        Create a new topic...
+                                    </Button>
+                                    <Button 
+                                        className="create-btn"
+                                        onClick={() => setShowCreateModal(true)}
+                                    >
+                                        <FaPlus className="me-2" />
+                                        Create
+                                    </Button>
+                                </div>
                             </Card.Body>
                         </Card>
+
+                        {/* Error Alert */}
+                        {error && (
+                            <Alert variant="danger" dismissible onClose={() => setError(null)}>
+                                {error}
+                            </Alert>
+                        )}
 
                         {/* Reading Items Feed */}
                         <div className="reading-items-feed">
                             {loading ? (
                                 <Card className="border-0 shadow-sm">
                                     <Card.Body className="text-center py-5">
-                                        <div className="spinner-border text-primary" role="status">
-                                            <span className="visually-hidden">Loading...</span>
-                                        </div>
+                                        <Spinner animation="border" variant="primary" />
+                                        <p className="mt-3 text-muted">Loading feed...</p>
                                     </Card.Body>
                                 </Card>
                             ) : readingItems.length === 0 ? (
                                 <Card className="border-0 shadow-sm">
                                     <Card.Body className="text-center py-5">
-                                        <FaBook size={48} className="text-muted mb-3" />
-                                        <p className="text-muted">No reading items yet</p>
-                                        <small className="text-muted">Subscribe to topics to see content</small>
+                                        <div className="empty-state">
+                                            <FaBook size={48} className="text-muted mb-3" />
+                                            <h5 className="text-muted">No posts yet</h5>
+                                            <p className="text-muted">
+                                                Subscribe to topics or create your own to see content here
+                                            </p>
+                                            <Button 
+                                                variant="primary" 
+                                                onClick={() => setShowCreateModal(true)}
+                                                className="mt-2"
+                                            >
+                                                <FaPlus className="me-2" />
+                                                Create Your First Topic
+                                            </Button>
+                                        </div>
                                     </Card.Body>
                                 </Card>
                             ) : (
                                 readingItems.map(item => (
-                                    <Card key={item._id} className="reading-item border-0 shadow-sm mb-3">
+                                    <Card key={item._id} className="reading-item-card border-0 shadow-sm mb-3">
                                         <Card.Body>
+                                            {/* User Info */}
                                             <div className="d-flex mb-3">
-                                                <div className="user-avatar-small me-3">
-                                                    {getInitials(item.createdBy.firstName, item.createdBy.lastName)}
+                                                <div className="user-avatar me-3">
+                                                    <div className="avatar-circle small">
+                                                        {getInitials(item.createdBy?.firstName, item.createdBy?.lastName)}
+                                                    </div>
                                                 </div>
                                                 <div className="flex-grow-1">
                                                     <div className="d-flex align-items-center justify-content-between mb-1">
                                                         <div>
                                                             <span className="fw-semibold">
-                                                                {item.createdBy.firstName} {item.createdBy.lastName}
+                                                                {item.createdBy?.firstName} {item.createdBy?.lastName}
                                                             </span>
                                                             <span className="text-muted ms-2">
-                                                                @{item.createdBy.username}
+                                                                @{item.createdBy?.username}
                                                             </span>
                                                         </div>
-                                                        <small className="text-muted">{getTimeAgo(item.createdAt)}</small>
+                                                        <small className="text-muted">
+                                                            {getTimeAgo(item.createdAt)}
+                                                        </small>
                                                     </div>
-                                                    <small className="text-primary">{item.topic.name}</small>
+                                                    <small 
+                                                        className="text-primary"
+                                                        style={{ cursor: 'pointer' }}
+                                                        onClick={() => handleTopicClick(item.topic._id)}
+                                                    >
+                                                        {item.topic.name}
+                                                    </small>
                                                 </div>
                                             </div>
 
-                                            <p className="mb-3">{item.description}</p>
+                                            {/* Description */}
+                                            <p className="item-description">{item.description}</p>
 
-                                            {item.type === 'LINK' && (
+                                            {/* Link or Document */}
+                                            {item.type === 'LINK' && item.url && (
                                                 <a 
                                                     href={item.url} 
                                                     target="_blank" 
                                                     rel="noopener noreferrer"
-                                                    className="resource-link"
+                                                    className="item-link d-inline-flex align-items-center mb-3"
                                                 >
                                                     <FaLink className="me-2" />
-                                                    {item.url}
+                                                    <span className="text-truncate">{item.url}</span>
                                                 </a>
                                             )}
 
                                             {item.type === 'DOCUMENT' && (
-                                                <div className="document-badge">
-                                                    <FaFileAlt className="me-2" />
-                                                    Document attached
+                                                <div className="mb-3">
+                                                    <span className="badge bg-secondary">
+                                                        <FaFileAlt className="me-2" />
+                                                        Document attached
+                                                    </span>
                                                 </div>
                                             )}
 
+                                            {/* Rating */}
                                             {item.averageRating && (
-                                                <div className="mt-2 mb-3">
+                                                <div className="mb-3">
                                                     <small className="text-warning">
                                                         ⭐ {item.averageRating} ({item.totalRatings} ratings)
                                                     </small>
                                                 </div>
                                             )}
 
-                                            <div className="reading-item-actions">
+                                            {/* Actions */}
+                                            <div className="item-actions d-flex gap-2">
                                                 <Button variant="link" size="sm" className="action-btn">
                                                     <FaHeart className="me-1" />
                                                     Like
@@ -421,6 +482,7 @@ const Dashboard = () => {
                                                     variant="link" 
                                                     size="sm" 
                                                     className={`action-btn ${item.isRead ? 'text-success' : ''}`}
+                                                    onClick={() => handleToggleReadStatus(item._id)}
                                                 >
                                                     <FaCheckCircle className="me-1" />
                                                     {item.isRead ? 'Read' : 'Mark as Read'}
@@ -434,37 +496,55 @@ const Dashboard = () => {
                     </Col>
 
                     {/* Right Sidebar - Trending Topics */}
-                    <Col lg={3} className="d-none d-lg-block">
-                        <div className="sidebar-right sticky-sidebar">
-                            <Card className="border-0 shadow-sm">
-                                <Card.Body>
-                                    <h6 className="fw-bold mb-3">Trending Topics</h6>
-                                    <div className="trending-list">
-                                        {trendingTopics.map((topic, index) => (
-                                            <div key={topic._id} className="trending-item">
+                    <Col lg={3} className="sidebar-right">
+                        <Card className="border-0 shadow-sm sticky-top">
+                            <Card.Body>
+                                <h6 className="fw-bold mb-3">
+                                    <FaChartLine className="me-2 text-danger" />
+                                    Trending Topics
+                                </h6>
+                                <div className="trending-list">
+                                    {loading ? (
+                                        <div className="text-center py-3">
+                                            <Spinner animation="border" size="sm" />
+                                        </div>
+                                    ) : trendingTopics.length === 0 ? (
+                                        <p className="text-muted small">No trending topics</p>
+                                    ) : (
+                                        trendingTopics.map((topic, index) => (
+                                            <div 
+                                                key={topic._id} 
+                                                className="trending-item"
+                                                onClick={() => handleTopicClick(topic._id)}
+                                            >
                                                 <div className="d-flex align-items-center">
-                                                    <span className="trending-rank me-3">{index + 1}</span>
+                                                    <div className="trending-number me-3">
+                                                        {index + 1}
+                                                    </div>
                                                     <div className="flex-grow-1">
-                                                        <div className="trending-name"
-                                                            onClick={ () =>
-                                                                // console.log(topic._id)
-                                                                navigate(`/topic/${ topic._id }`)
-                                                            }
-                                                        >{ topic.name }</div>
+                                                        <div className="topic-name fw-semibold">
+                                                            {topic.name}
+                                                        </div>
                                                         <small className="text-muted">
                                                             {topic.subscriberCount} subscribers
                                                         </small>
                                                     </div>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
-                                </Card.Body>
-                            </Card>
-                        </div>
+                                        ))
+                                    )}
+                                </div>
+                            </Card.Body>
+                        </Card>
                     </Col>
                 </Row>
             </Container>
+
+            {/* Create Topic Modal */}
+            <CreateTopicModal 
+                show={showCreateModal}
+                onHide={() => setShowCreateModal(false)}
+            />
         </div>
     );
 };

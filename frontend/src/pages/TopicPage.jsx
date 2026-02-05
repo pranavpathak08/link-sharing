@@ -12,7 +12,8 @@ import {
     Nav,
     NavDropdown,
     Badge,
-    Spinner
+    Spinner,
+    Alert
 } from 'react-bootstrap';
 import {
     FaBook,
@@ -29,95 +30,75 @@ import {
     FaComment,
     FaShare,
     FaCheckCircle,
-    FaArrowLeft
+    FaArrowLeft,
+    FaUsers,
+    FaTimes,
+    FaDownload
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
-// import { topicAPI, resourceAPI } from '../services/api';
+import { topicAPI, resourceAPI } from '../services/api';
 import toast from 'react-hot-toast';
-// import './TopicPage.css';
+import './Dashboard.css';
 
 const TopicPage = () => {
     const { topicId } = useParams();
     const navigate = useNavigate();
-    const { user, logout } = useAuth();
+    const { user, logout, isAuthenticated } = useAuth();
 
     // State
     const [topic, setTopic] = useState(null);
     const [resources, setResources] = useState([]);
     const [loading, setLoading] = useState(true);
     const [posting, setPosting] = useState(false);
+    const [error, setError] = useState(null);
+    const [isSubscribed, setIsSubscribed] = useState(false);
 
     // Create Post Form State
     const [showCreatePost, setShowCreatePost] = useState(false);
-    const [postType, setPostType] = useState('LINK'); // LINK or DOCUMENT
+    const [postType, setPostType] = useState('LINK');
     const [postDescription, setPostDescription] = useState('');
     const [postUrl, setPostUrl] = useState('');
     const [postFile, setPostFile] = useState(null);
 
     useEffect(() => {
-        fetchTopicData();
-    }, [topicId]);
+        if (!isAuthenticated) {
+            navigate('/login');
+        } else {
+            fetchTopicData();
+        }
+    }, [topicId, isAuthenticated, navigate]);
 
     const fetchTopicData = async () => {
-    try {
-        setLoading(true); 
+        try {
+            setLoading(true);
+            setError(null);
 
-        // 🔹 Dummy Topic
-        const dummyTopic = {
-            _id: topicId,
-            name: 'Artificial Intelligence',
-            visibility: 'PUBLIC',
-            createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-            subscriberCount: 1245,
-            createdBy: {
-                firstName: 'Admin',
-                lastName: 'User'
+            // Fetch topic details
+            const topicRes = await topicAPI.getTopicDetails(topicId);
+            setTopic(topicRes.data.topic);
+            setIsSubscribed(topicRes.data.isSubscribed);
+
+            // Fetch resources for this topic
+            const resourcesRes = await resourceAPI.getTopicResources(topicId, { 
+                page: 1, 
+                limit: 50 
+            });
+            setResources(resourcesRes.data.resources || []);
+
+            setLoading(false);
+        } catch (error) {
+            console.error('Error fetching topic data:', error);
+            const errorMessage = error.response?.data?.message || 'Failed to load topic';
+            setError(errorMessage);
+            setLoading(false);
+            
+            if (error.response?.status === 404) {
+                toast.error('Topic not found');
+            } else if (error.response?.status === 403) {
+                toast.error('You do not have access to this topic');
             }
-        };
-
-        // 🔹 Dummy Resources (Posts)
-        const dummyResources = [
-            {
-                _id: 'r1',
-                description: 'Understanding Large Language Models and how ChatGPT works',
-                type: 'LINK',
-                url: 'https://example.com/llm-guide',
-                createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-                createdBy: {
-                    firstName: 'John',
-                    lastName: 'Doe',
-                    username: 'johndoe'
-                },
-                averageRating: 4.6,
-                totalRatings: 32,
-                isRead: false
-            },
-            {
-                _id: 'r2',
-                description: 'AI Roadmap PDF for beginners to advanced',
-                type: 'DOCUMENT',
-                createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
-                createdBy: {
-                    firstName: 'Jane',
-                    lastName: 'Smith',
-                    username: 'janesmith'
-                },
-                averageRating: 4.9,
-                totalRatings: 54,
-                isRead: true
-            }
-        ];
-
-        setTopic(dummyTopic);
-        setResources(dummyResources);
-
-        setLoading(false);
-    } catch (error) {
-        console.error('Error loading dummy data:', error);
-        setLoading(false);
-    }
-};
-
+        }
+    };
 
     const handleLogout = () => {
         logout();
@@ -175,6 +156,44 @@ const TopicPage = () => {
         }
     };
 
+    const handleToggleReadStatus = async (resourceId) => {
+        try {
+            await resourceAPI.toggleReadStatus(resourceId);
+            
+            // Update the resource in state
+            setResources(prev => prev.map(resource => 
+                resource._id === resourceId 
+                    ? { ...resource, isRead: !resource.isRead }
+                    : resource
+            ));
+            
+            toast.success('Read status updated');
+        } catch (error) {
+            console.error('Error toggling read status:', error);
+            toast.error('Failed to update read status');
+        }
+    };
+
+    const handleDownloadDocument = async (resourceId) => {
+        try {
+            const response = await resourceAPI.downloadDocument(resourceId);
+            
+            // Create blob and download
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `document-${resourceId}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            
+            toast.success('Download started');
+        } catch (error) {
+            console.error('Error downloading document:', error);
+            toast.error('Failed to download document');
+        }
+    };
+
     const getInitials = (firstName, lastName) => {
         return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
     };
@@ -210,10 +229,10 @@ const TopicPage = () => {
 
     if (loading) {
         return (
-            <div className="topic-page">
+            <div className="dashboard-page">
                 <Navbar bg="white" expand="lg" className="shadow-sm sticky-top">
                     <Container fluid>
-                        <Navbar.Brand className="fw-bold">ChirpX</Navbar.Brand>
+                        <Navbar.Brand className="fw-bold gradient-text">ChirpX</Navbar.Brand>
                     </Container>
                 </Navbar>
                 <Container className="py-5 text-center">
@@ -224,28 +243,37 @@ const TopicPage = () => {
         );
     }
 
-    if (!topic) {
+    if (error || !topic) {
         return (
-            <div className="topic-page">
+            <div className="dashboard-page">
+                <Navbar bg="white" expand="lg" className="shadow-sm sticky-top">
+                    <Container fluid>
+                        <Navbar.Brand className="fw-bold gradient-text">ChirpX</Navbar.Brand>
+                    </Container>
+                </Navbar>
                 <Container className="py-5 text-center">
-                    <h2>Topic not found</h2>
-                    <Button variant="primary" onClick={() => navigate('/dashboard')}>
-                        Back to Dashboard
-                    </Button>
+                    <div className="empty-state">
+                        <FaBook size={64} className="text-muted mb-3" />
+                        <h2 className="text-muted mb-3">{error || 'Topic not found'}</h2>
+                        <Button variant="primary" onClick={() => navigate('/dashboard')}>
+                            <FaArrowLeft className="me-2" />
+                            Back to Dashboard
+                        </Button>
+                    </div>
                 </Container>
             </div>
         );
     }
 
     return (
-        <div className="topic-page">
+        <div className="dashboard-page">
             {/* Navbar */}
             <Navbar bg="white" expand="lg" className="shadow-sm sticky-top">
                 <Container fluid>
-                    <Navbar.Brand className="fw-bold d-flex align-items-center">
+                    <Navbar.Brand className="fw-bold gradient-text d-flex align-items-center">
                         <Button 
                             variant="link" 
-                            className="text-decoration-none p-0 me-3"
+                            className="text-decoration-none p-0 me-3 text-muted"
                             onClick={() => navigate('/dashboard')}
                         >
                             <FaArrowLeft size={20} />
@@ -257,9 +285,11 @@ const TopicPage = () => {
                         <Nav className="ms-auto align-items-center">
                             <NavDropdown
                                 title={
-                                    <span>
-                                        <div className="user-avatar-small d-inline-flex align-items-center justify-content-center me-2">
-                                            {getInitials(user?.firstName, user?.lastName)}
+                                    <span className="nav-dropdown">
+                                        <div className="user-avatar d-inline-flex align-items-center justify-content-center me-2">
+                                            <div className="avatar-circle small">
+                                                {getInitials(user?.firstName, user?.lastName)}
+                                            </div>
                                         </div>
                                         {user?.firstName} {user?.lastName}
                                     </span>
@@ -276,7 +306,7 @@ const TopicPage = () => {
                                     <FaCog className="me-2" />
                                     Settings
                                 </NavDropdown.Item>
-                                <NavDropdown.Item onClick={handleLogout}>
+                                <NavDropdown.Item onClick={handleLogout} className="text-danger">
                                     <FaSignOutAlt className="me-2" />
                                     Logout
                                 </NavDropdown.Item>
@@ -286,62 +316,75 @@ const TopicPage = () => {
                 </Container>
             </Navbar>
 
-            <Container fluid className="py-4">
+            <Container fluid className="dashboard-container py-4">
                 <Row className="g-4">
                     {/* Left Sidebar - Topic Info */}
-                    <Col lg={3}>
-                        <Card className="topic-info-card border-0 shadow-sm sticky-top">
+                    <Col lg={3} className="sidebar-left">
+                        <Card className="border-0 shadow-sm sticky-top">
                             <Card.Body className="p-4">
-                                <div className="topic-icon-large mb-3">
-                                    <FaBook size={32} />
+                                {/* Topic Icon */}
+                                <div className="text-center mb-4">
+                                    <div className="d-inline-flex align-items-center justify-content-center rounded-circle"
+                                        style={{
+                                            width: '80px',
+                                            height: '80px',
+                                            background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)'
+                                        }}
+                                    >
+                                        <FaBook size={36} className="text-primary" />
+                                    </div>
                                 </div>
                                 
-                                <h4 className="fw-bold mb-3">{topic.name}</h4>
+                                {/* Topic Name */}
+                                <h4 className="fw-bold mb-3 text-center">{topic.name}</h4>
                                 
-                                <div className="topic-meta mb-3">
-                                    <div className="d-flex align-items-center mb-2">
-                                        {topic.visibility === 'PUBLIC' ? (
-                                            <>
-                                                <FaGlobe className="me-2 text-success" size={16} />
-                                                <Badge bg="success">Public</Badge>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <FaLock className="me-2 text-warning" size={16} />
-                                                <Badge bg="warning">Private</Badge>
-                                            </>
-                                        )}
-                                    </div>
-                                    
-                                    <div className="text-muted small mt-3">
-                                        <div className="d-flex align-items-start mb-2">
+                                {/* Visibility Badge */}
+                                <div className="text-center mb-4">
+                                    {topic.visibility === 'PUBLIC' ? (
+                                        <Badge bg="success" className="px-3 py-2">
+                                            <FaGlobe className="me-2" />
+                                            Public
+                                        </Badge>
+                                    ) : (
+                                        <Badge bg="warning" className="px-3 py-2">
+                                            <FaLock className="me-2" />
+                                            Private
+                                        </Badge>
+                                    )}
+                                </div>
+                                
+                                {/* Topic Meta */}
+                                <div className="border-top pt-3">
+                                    <div className="mb-3">
+                                        <div className="d-flex align-items-start text-muted small">
                                             <FaUser className="me-2 mt-1" size={14} />
-                                            <div>
-                                                <div className="fw-semibold">Created by</div>
+                                            <div className="flex-grow-1">
+                                                <div className="fw-semibold text-dark">Created by</div>
                                                 <div>
                                                     {topic.createdBy?.firstName} {topic.createdBy?.lastName}
                                                 </div>
                                             </div>
                                         </div>
-                                        
-                                        <div className="d-flex align-items-start">
+                                    </div>
+                                    
+                                    <div className="mb-3">
+                                        <div className="d-flex align-items-start text-muted small">
                                             <FaCalendar className="me-2 mt-1" size={14} />
-                                            <div>
-                                                <div className="fw-semibold">Created on</div>
+                                            <div className="flex-grow-1">
+                                                <div className="fw-semibold text-dark">Created on</div>
                                                 <div>{formatDate(topic.createdAt)}</div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                {topic.subscriberCount !== undefined && (
-                                    <div className="mt-4 pt-3 border-top">
-                                        <div className="text-center">
-                                            <h5 className="mb-0">{topic.subscriberCount}</h5>
+                                    {topic.subscriberCount !== undefined && (
+                                        <div className="border-top pt-3 text-center">
+                                            <FaUsers className="text-primary mb-2" size={20} />
+                                            <h5 className="mb-0 fw-bold">{topic.subscriberCount}</h5>
                                             <small className="text-muted">Subscribers</small>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </Card.Body>
                         </Card>
                     </Col>
@@ -349,166 +392,209 @@ const TopicPage = () => {
                     {/* Center - Main Feed */}
                     <Col lg={9}>
                         {/* Create Post Section */}
-                        <Card className="border-0 shadow-sm mb-4">
-                            <Card.Body className="p-4">
-                                {!showCreatePost ? (
-                                    <Button 
-                                        variant="primary" 
-                                        onClick={() => setShowCreatePost(true)}
-                                        className="w-100 d-flex align-items-center justify-content-center"
-                                    >
-                                        <FaPlus className="me-2" />
-                                        Create Post
-                                    </Button>
-                                ) : (
-                                    <Form onSubmit={handleCreatePost}>
-                                        <div className="d-flex align-items-center mb-3">
-                                            <div className="user-avatar me-3">
-                                                {getInitials(user?.firstName, user?.lastName)}
+                        {isSubscribed && (
+                            <Card className="create-topic-card border-0 shadow-sm mb-4">
+                                <Card.Body className="p-4">
+                                    {!showCreatePost ? (
+                                        <div className="d-flex align-items-center gap-3">
+                                            <div className="user-avatar">
+                                                <div className="avatar-circle">
+                                                    {getInitials(user?.firstName, user?.lastName)}
+                                                </div>
                                             </div>
-                                            <h6 className="mb-0">Create a Post</h6>
+                                            <Button 
+                                                variant="outline-primary"
+                                                className="flex-grow-1 text-start topic-input"
+                                                onClick={() => setShowCreatePost(true)}
+                                            >
+                                                Share something...
+                                            </Button>
+                                            <Button 
+                                                className="create-btn"
+                                                onClick={() => setShowCreatePost(true)}
+                                            >
+                                                <FaPlus className="me-2" />
+                                                Post
+                                            </Button>
                                         </div>
-
-                                        <Form.Group className="mb-3">
-                                            <Form.Label>Post Type</Form.Label>
-                                            <div className="d-flex gap-3">
-                                                <Form.Check
-                                                    type="radio"
-                                                    id="type-link"
-                                                    label={
-                                                        <span>
-                                                            <FaLink className="me-2" />
-                                                            Link
-                                                        </span>
-                                                    }
-                                                    checked={postType === 'LINK'}
-                                                    onChange={() => setPostType('LINK')}
-                                                />
-                                                <Form.Check
-                                                    type="radio"
-                                                    id="type-document"
-                                                    label={
-                                                        <span>
-                                                            <FaFileAlt className="me-2" />
-                                                            Document
-                                                        </span>
-                                                    }
-                                                    checked={postType === 'DOCUMENT'}
-                                                    onChange={() => setPostType('DOCUMENT')}
-                                                />
+                                    ) : (
+                                        <Form onSubmit={handleCreatePost}>
+                                            <div className="d-flex align-items-center justify-content-between mb-3">
+                                                <div className="d-flex align-items-center">
+                                                    <div className="user-avatar me-3">
+                                                        <div className="avatar-circle">
+                                                            {getInitials(user?.firstName, user?.lastName)}
+                                                        </div>
+                                                    </div>
+                                                    <h6 className="mb-0">Create a Post</h6>
+                                                </div>
+                                                <Button
+                                                    variant="link"
+                                                    onClick={() => {
+                                                        setShowCreatePost(false);
+                                                        setPostDescription('');
+                                                        setPostUrl('');
+                                                        setPostFile(null);
+                                                    }}
+                                                    className="text-secondary p-0"
+                                                >
+                                                    <FaTimes size={20} />
+                                                </Button>
                                             </div>
-                                        </Form.Group>
 
-                                        <Form.Group className="mb-3">
-                                            <Form.Label>Description</Form.Label>
-                                            <Form.Control
-                                                as="textarea"
-                                                rows={3}
-                                                placeholder="What's this about?"
-                                                value={postDescription}
-                                                onChange={(e) => setPostDescription(e.target.value)}
-                                                disabled={posting}
-                                            />
-                                        </Form.Group>
-
-                                        {postType === 'LINK' && (
                                             <Form.Group className="mb-3">
-                                                <Form.Label>URL</Form.Label>
-                                                <InputGroup>
-                                                    <InputGroup.Text>
-                                                        <FaLink />
-                                                    </InputGroup.Text>
-                                                    <Form.Control
-                                                        type="url"
-                                                        placeholder="https://example.com"
-                                                        value={postUrl}
-                                                        onChange={(e) => setPostUrl(e.target.value)}
-                                                        disabled={posting}
+                                                <div className="d-flex gap-3">
+                                                    <Form.Check
+                                                        type="radio"
+                                                        id="type-link"
+                                                        label={
+                                                            <span>
+                                                                <FaLink className="me-2" />
+                                                                Link
+                                                            </span>
+                                                        }
+                                                        checked={postType === 'LINK'}
+                                                        onChange={() => setPostType('LINK')}
                                                     />
-                                                </InputGroup>
+                                                    <Form.Check
+                                                        type="radio"
+                                                        id="type-document"
+                                                        label={
+                                                            <span>
+                                                                <FaFileAlt className="me-2" />
+                                                                Document
+                                                            </span>
+                                                        }
+                                                        checked={postType === 'DOCUMENT'}
+                                                        onChange={() => setPostType('DOCUMENT')}
+                                                    />
+                                                </div>
                                             </Form.Group>
-                                        )}
 
-                                        {postType === 'DOCUMENT' && (
                                             <Form.Group className="mb-3">
-                                                <Form.Label>Upload File</Form.Label>
                                                 <Form.Control
-                                                    type="file"
-                                                    onChange={(e) => setPostFile(e.target.files[0])}
+                                                    as="textarea"
+                                                    rows={3}
+                                                    placeholder="What's this about?"
+                                                    value={postDescription}
+                                                    onChange={(e) => setPostDescription(e.target.value)}
                                                     disabled={posting}
-                                                    accept=".pdf,.doc,.docx,.txt,.zip,.rar"
                                                 />
-                                                <Form.Text className="text-muted">
-                                                    Accepted formats: PDF, DOC, DOCX, TXT, ZIP, RAR (Max 10MB)
-                                                </Form.Text>
                                             </Form.Group>
-                                        )}
 
-                                        <div className="d-flex gap-2">
-                                            <Button 
-                                                variant="primary" 
-                                                type="submit"
-                                                disabled={posting}
-                                            >
-                                                {posting ? (
-                                                    <>
-                                                        <Spinner
-                                                            as="span"
-                                                            animation="border"
-                                                            size="sm"
-                                                            className="me-2"
+                                            {postType === 'LINK' && (
+                                                <Form.Group className="mb-3">
+                                                    <InputGroup>
+                                                        <InputGroup.Text>
+                                                            <FaLink />
+                                                        </InputGroup.Text>
+                                                        <Form.Control
+                                                            type="url"
+                                                            placeholder="https://example.com"
+                                                            value={postUrl}
+                                                            onChange={(e) => setPostUrl(e.target.value)}
+                                                            disabled={posting}
                                                         />
-                                                        Posting...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <FaPlus className="me-2" />
-                                                        Post
-                                                    </>
-                                                )}
-                                            </Button>
-                                            <Button 
-                                                variant="outline-secondary"
-                                                onClick={() => {
-                                                    setShowCreatePost(false);
-                                                    setPostDescription('');
-                                                    setPostUrl('');
-                                                    setPostFile(null);
-                                                }}
-                                                disabled={posting}
-                                            >
-                                                Cancel
-                                            </Button>
-                                        </div>
-                                    </Form>
-                                )}
-                            </Card.Body>
-                        </Card>
+                                                    </InputGroup>
+                                                </Form.Group>
+                                            )}
+
+                                            {postType === 'DOCUMENT' && (
+                                                <Form.Group className="mb-3">
+                                                    <Form.Control
+                                                        type="file"
+                                                        onChange={(e) => setPostFile(e.target.files[0])}
+                                                        disabled={posting}
+                                                        accept=".pdf,.doc,.docx,.txt,.zip,.rar"
+                                                    />
+                                                    <Form.Text className="text-muted">
+                                                        Max 10MB • PDF, DOC, DOCX, TXT, ZIP, RAR
+                                                    </Form.Text>
+                                                </Form.Group>
+                                            )}
+
+                                            <div className="d-flex gap-2">
+                                                <Button 
+                                                    className="create-btn"
+                                                    type="submit"
+                                                    disabled={posting}
+                                                >
+                                                    {posting ? (
+                                                        <>
+                                                            <Spinner
+                                                                as="span"
+                                                                animation="border"
+                                                                size="sm"
+                                                                className="me-2"
+                                                            />
+                                                            Posting...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <FaPlus className="me-2" />
+                                                            Post
+                                                        </>
+                                                    )}
+                                                </Button>
+                                                <Button 
+                                                    variant="outline-secondary"
+                                                    onClick={() => {
+                                                        setShowCreatePost(false);
+                                                        setPostDescription('');
+                                                        setPostUrl('');
+                                                        setPostFile(null);
+                                                    }}
+                                                    disabled={posting}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </div>
+                                        </Form>
+                                    )}
+                                </Card.Body>
+                            </Card>
+                        )}
+
+                        {/* Not Subscribed Message */}
+                        {!isSubscribed && (
+                            <Alert variant="info" className="mb-4">
+                                <FaLock className="me-2" />
+                                You must be subscribed to this topic to create posts.
+                            </Alert>
+                        )}
 
                         {/* Resources Feed */}
-                        <div className="resources-feed">
-                            <h5 className="mb-3">Posts</h5>
+                        <div className="reading-items-feed">
+                            <h5 className="mb-3 fw-bold">Posts</h5>
                             
                             {resources.length === 0 ? (
                                 <Card className="border-0 shadow-sm">
                                     <Card.Body className="text-center py-5">
-                                        <FaBook size={48} className="text-muted mb-3" />
-                                        <p className="text-muted">No posts yet</p>
-                                        <small className="text-muted">
-                                            Be the first to share something!
-                                        </small>
+                                        <div className="empty-state">
+                                            <FaBook size={48} className="text-muted mb-3" />
+                                            <h5 className="text-muted">No posts yet</h5>
+                                            <p className="text-muted">
+                                                {isSubscribed 
+                                                    ? "Be the first to share something!"
+                                                    : "Subscribe to this topic to see and create posts"
+                                                }
+                                            </p>
+                                        </div>
                                     </Card.Body>
                                 </Card>
                             ) : (
                                 resources.map(resource => (
-                                    <Card key={resource._id} className="resource-card border-0 shadow-sm mb-3">
+                                    <Card key={resource._id} className="reading-item-card border-0 shadow-sm mb-3">
                                         <Card.Body>
+                                            {/* User Info */}
                                             <div className="d-flex mb-3">
-                                                <div className="user-avatar-small me-3">
-                                                    {getInitials(
-                                                        resource.createdBy?.firstName,
-                                                        resource.createdBy?.lastName
-                                                    )}
+                                                <div className="user-avatar me-3">
+                                                    <div className="avatar-circle small">
+                                                        {getInitials(
+                                                            resource.createdBy?.firstName,
+                                                            resource.createdBy?.lastName
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 <div className="flex-grow-1">
                                                     <div className="d-flex align-items-center justify-content-between mb-1">
@@ -528,36 +614,47 @@ const TopicPage = () => {
                                                 </div>
                                             </div>
 
-                                            <p className="mb-3">{resource.description}</p>
+                                            {/* Description */}
+                                            <p className="item-description">{resource.description}</p>
 
+                                            {/* Link */}
                                             {resource.type === 'LINK' && resource.url && (
                                                 <a
                                                     href={resource.url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="resource-link"
+                                                    className="item-link d-inline-flex align-items-center mb-3"
                                                 >
                                                     <FaLink className="me-2" />
-                                                    {resource.url}
+                                                    <span className="text-truncate">{resource.url}</span>
                                                 </a>
                                             )}
 
+                                            {/* Document */}
                                             {resource.type === 'DOCUMENT' && (
-                                                <div className="document-badge">
-                                                    <FaFileAlt className="me-2" />
-                                                    Document attached
+                                                <div className="mb-3">
+                                                    <Button
+                                                        variant="outline-primary"
+                                                        size="sm"
+                                                        onClick={() => handleDownloadDocument(resource._id)}
+                                                    >
+                                                        <FaDownload className="me-2" />
+                                                        Download Document
+                                                    </Button>
                                                 </div>
                                             )}
 
+                                            {/* Rating */}
                                             {resource.averageRating && (
-                                                <div className="mt-2 mb-3">
+                                                <div className="mb-3">
                                                     <small className="text-warning">
                                                         ⭐ {resource.averageRating} ({resource.totalRatings} ratings)
                                                     </small>
                                                 </div>
                                             )}
 
-                                            <div className="resource-actions">
+                                            {/* Actions */}
+                                            <div className="item-actions d-flex gap-2">
                                                 <Button variant="link" size="sm" className="action-btn">
                                                     <FaHeart className="me-1" />
                                                     Like
@@ -570,14 +667,17 @@ const TopicPage = () => {
                                                     <FaShare className="me-1" />
                                                     Share
                                                 </Button>
-                                                <Button
-                                                    variant="link"
-                                                    size="sm"
-                                                    className={`action-btn ${resource.isRead ? 'text-success' : ''}`}
-                                                >
-                                                    <FaCheckCircle className="me-1" />
-                                                    {resource.isRead ? 'Read' : 'Mark as Read'}
-                                                </Button>
+                                                {isSubscribed && (
+                                                    <Button
+                                                        variant="link"
+                                                        size="sm"
+                                                        className={`action-btn ${resource.isRead ? 'text-success' : ''}`}
+                                                        onClick={() => handleToggleReadStatus(resource._id)}
+                                                    >
+                                                        <FaCheckCircle className="me-1" />
+                                                        {resource.isRead ? 'Read' : 'Mark as Read'}
+                                                    </Button>
+                                                )}
                                             </div>
                                         </Card.Body>
                                     </Card>
