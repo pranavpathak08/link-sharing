@@ -1,11 +1,15 @@
 import { Navbar, Nav, NavDropdown, Container } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { FaBook, FaUser, FaSignOutAlt, FaCog } from 'react-icons/fa'
+import { FaBook, FaUser, FaSignOutAlt, FaCog, FaQq, FaArrowLeft } from 'react-icons/fa'
 import { useAuth } from "../../../src/context/AuthContext.jsx"
 
 const AppNavbar = ({showBackButton = false, onBackClick = null}) => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+
+    const backToHomePage = () => {
+        navigate('/');
+    }
 
     const handleLogout = () => {
         logout();
@@ -22,13 +26,14 @@ const AppNavbar = ({showBackButton = false, onBackClick = null}) => {
                 <Navbar.Brand className="fw-bold gradient-text d-flex align-items-center">
                     { showBackButton && onBackClick && (
                         <button
-                            onClick={ onBackClick }
+                            onClick={ backToHomePage }
                             className="btn btn-link text-decoration-none p-0 me-3 text-muted"
                             aria-label="Go back"
                         >
-                            <i className='fas fa-arrow-left'/>
+                            <FaArrowLeft />
                         </button>
                     ) }
+                    <FaQq className='text-primary me-2' size={28}/> 
                     ChirpX
                 </Navbar.Brand>
                 <Navbar.Toggle />

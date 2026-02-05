@@ -1,13 +1,13 @@
 import { Link } from "react-router-dom";
 import { Container, Navbar, Nav, Button } from 'react-bootstrap';
-import { FaBook } from 'react-icons/fa';
+import { FaBook, FaQq } from 'react-icons/fa';
 
 const HomeNavbar = ({ isAuthenticated, user }) => {
     return (
         <Navbar bg="white" expand="lg" className="shadow-sm sticky-top">
             <Container>
                 <Navbar.Brand as={Link} to="/" className="fw-bold d-flex align-items-center">
-                    <FaBook className="me-2 text-primary" size={28} />
+                    <FaQq className="me-2 text-primary" size={28} />
                     <span className="gradient-text">ChirpX</span>
                 </Navbar.Brand>
                 <Navbar.Toggle aria-controls="basic-navbar-nav" />
