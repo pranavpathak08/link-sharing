@@ -10,10 +10,10 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import Homepage from './pages/HomePage';
+import TopicPage from './pages/TopicPage';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
-import TopicPage from './pages/TopicPage';
 
 function App() {
   return (
@@ -50,8 +50,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password/:token" element={ <ResetPassword /> } />
-          <Route path="/topic/:topicId" element={  <TopicPage />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           
           {/* Protected Routes */}
           <Route
@@ -59,6 +58,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/topic/:topicId"
+            element={
+              <ProtectedRoute>
+                <TopicPage />
               </ProtectedRoute>
             }
           />
