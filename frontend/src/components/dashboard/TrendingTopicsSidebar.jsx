@@ -1,14 +1,37 @@
-import { Card, Spinner } from "react-bootstrap";
-import { FaChartLine } from "react-icons/fa";
+import { Card, Spinner, Button } from "react-bootstrap";
+import { FaChartLine, FaGlobe } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 const TrendingTopicsSidebar = ({ trendingTopics, loading, onTopicClick }) => {
+    const navigate = useNavigate();
+
+    const handleBrowseAll = () => {
+        navigate('/browse-topics');
+    };
+
     return (
         <Card className="border-0 shadow-sm sticky-top">
             <Card.Body>
-                <h6 className="fw-bold mb-3">
-                    <FaChartLine className="me-2 text-danger" />
-                    Trending Topics
-                </h6>
+                {/* Browse All Topics Button */}
+                <Button
+                    variant="outline-primary"
+                    size="sm"
+                    className="w-100 mb-3 browse-all-btn"
+                    onClick={handleBrowseAll}
+                >
+                    <FaGlobe className="me-2" />
+                    Browse All Topics
+                </Button>
+
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                    <h5 className="fw-bold mb-0">
+                        {/* <FaChartLine className="me-2 text-danger" /> */}
+                        Trending Topics
+                    </h5>
+                </div>
+                
+                
+
                 <div className="trending-list">
                     {loading ? (
                         <div className="text-center py-3">

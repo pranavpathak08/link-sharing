@@ -650,3 +650,28 @@ html {
         transform: translateY(0);
     }
 }
+
+/* Browse All Topics Button */
+.browse-all-btn {
+    border-radius: 10px;
+    border: 2px solid #667eea;
+    color: #667eea;
+    font-weight: 600;
+    padding: 0.625rem 1rem;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.browse-all-btn:hover {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: transparent;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.browse-all-btn:active {
+    transform: translateY(0);
+}

@@ -11,6 +11,7 @@ import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import Homepage from './pages/HomePage';
 import TopicPage from './pages/TopicPage';
+import BrowseTopics from './pages/BrowseTopics';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
@@ -67,6 +68,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <TopicPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/browse-topics"
+            element={
+              <ProtectedRoute>
+                <BrowseTopics />
               </ProtectedRoute>
             }
           />

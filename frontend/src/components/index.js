@@ -14,6 +14,7 @@ export { default as TopicInfoSidebar } from './topic/TopicInfoSidebar';
 export { default as CreatePostCard } from './topic/CreatePostCard';
 export { default as CreatePostForm } from './topic/CreatePostForm';
 export { default as TopicResourceCard } from './topic/TopicResourceCard';
+export { default as PublicTopicCard } from './browse/PublicTopicCard';
 
 // Admin Components
 export { default as AdminDashboard } from './admin/AdminDashboard';
